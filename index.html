@@ -293,6 +293,17 @@
         async function startGame() {
             ui.startScreen.style.display = 'none';
             questions = await loadQuestions();
+            
+            if (questions.length === 0) {
+                alert('Не удалось загрузить вопросы! Проверьте файл chat.txt');
+                ui.startScreen.style.display = 'flex';
+                return;
+            }
+            
+            currentQuestion = 0;
+            score = 0;
+            resetLifelines();
+            resetTimer();
             showQuestion();
             startTimer();
         }
@@ -310,60 +321,73 @@
 
         function generateQuestions(chatLines) {
             const questions = [];
-            const lines = chatLines.filter(line => line.trim().length > 5);
+            const lines = chatLines
+                .filter(line => line.trim().length > 5)
+                .map(line => line.trim());
             
-            for (let i = 0; i < lines.length && questions.length < 15; i++) {
-                const line = lines[i];
-                const words = line.split(' ');
-                if (words.length < 3) continue;
+            if (lines.length < 3) {
+                console.error('Недостаточно данных для генерации вопросов');
+                return [];
+            }
+            
+            const answersMap = {
+                'лол': 'Громко смеюсь',
+                'кек': 'Смех в интернете',
+                'ауф': 'Выражение восторга',
+                'имхо': 'Имею мнение, хрен оспоришь',
+                'краш': 'Тот, кто нравится',
+                'рофл': 'Смешная ситуация',
+                'гг': 'Хорошая игра',
+                'спс': 'Спасибо',
+                'пж': 'Пожалуйста',
+                'нз': 'Не за что'
+            };
+
+            for (const line of lines) {
+                if (questions.length >= 15) break;
+                
+                const keyword = Object.keys(answersMap).find(word => 
+                    line.toLowerCase().includes(word)
+                );
+                
+                if (!keyword) continue;
+
+                const answers = generateAnswers(keyword, answersMap, lines);
+                if (answers.length !== 4) continue;
 
                 questions.push({
-                    question: `Что означает "${line}"?`,
-                    answers: generateAnswers(line, lines),
-                    correct: Math.floor(Math.random() * 4)
+                    question: `Что означает "${keyword}" в этой переписке?`,
+                    answers: answers,
+                    correct: answers.indexOf(answersMap[keyword])
                 });
             }
             
             return questions;
         }
 
-        function generateAnswers(line, allLines) {
+        function generateAnswers(keyword, answersMap, allLines) {
             const answers = new Set();
-            answers.add(getCorrectAnswer(line));
+            const correct = answersMap[keyword];
+            answers.add(correct);
             
             while (answers.size < 4) {
-                const randomLine = allLines[Math.floor(Math.random() * allLines.length)];
-                answers.add(getRandomAnswer(randomLine));
+                const randomWord = getRandomKey(answersMap);
+                const wrongAnswer = answersMap[randomWord];
+                if (wrongAnswer !== correct) {
+                    answers.add(wrongAnswer);
+                }
             }
             
-            return Array.from(answers).sort(() => Math.random() - 0.5);
+            return shuffleArray([...answers]);
         }
 
-        function getCorrectAnswer(line) {
-            const answers = {
-                'лол': 'Громко смеюсь',
-                'кек': 'Смех в интернете',
-                'ауф': 'Выражение восторга',
-                'имхо': 'Имею мнение, хрен оспоришь'
-            };
-            
-            const lowerLine = line.toLowerCase();
-            for (const [key, value] of Object.entries(answers)) {
-                if (lowerLine.includes(key)) return value;
-            }
-            return 'Неизвестное выражение';
+        function getRandomKey(obj) {
+            const keys = Object.keys(obj);
+            return keys[Math.floor(Math.random() * keys.length)];
         }
 
-        function getRandomAnswer(line) {
-            const randomAnswers = [
-                'Согласие',
-                'Вопрос',
-                'Сарказм',
-                'Приветствие',
-                'Прощание',
-                'Комплимент'
-            ];
-            return randomAnswers[Math.floor(Math.random() * randomAnswers.length)];
+        function shuffleArray(array) {
+            return array.sort(() => Math.random() - 0.5);
         }
 
         function showQuestion() {
@@ -386,7 +410,6 @@
             });
 
             updatePrizeLadder();
-            resetLifelines();
         }
 
         function checkAnswer(isCorrect) {
@@ -402,8 +425,13 @@
                 score += calculatePrize(currentQuestion + 1);
                 setTimeout(() => {
                     currentQuestion++;
-                    showQuestion();
-                    startTimer();
+                    if (currentQuestion < questions.length) {
+                        resetLifelines();
+                        showQuestion();
+                        startTimer();
+                    } else {
+                        endGame();
+                    }
                 }, 2000);
             } else {
                 setTimeout(endGame, 2000);
@@ -423,6 +451,11 @@
                     endGame();
                 }
             }, 1000);
+        }
+
+        function resetTimer() {
+            clearInterval(timerInterval);
+            ui.timer.textContent = '30';
         }
 
         function updatePrizeLadder() {
@@ -471,7 +504,7 @@
             if (usedLifelines.callFriend) return;
             
             const correctAnswer = questions[currentQuestion].answers[questions[currentQuestion].correct];
-            alert(`Друг говорит: "Думаю, это '${correctAnswer}'!"`);
+            alert(`Ваш друг говорит: "Я уверен, это '${correctAnswer}'!"`);
             usedLifelines.callFriend = true;
             ui.callFriend.classList.add('used');
         }
@@ -504,6 +537,7 @@
             ui.questionText.textContent = `Игра окончена! Ваш выигрыш: ${score} ₽`;
             ui.answersContainer.innerHTML = '';
             ui.timer.style.display = 'none';
+            ui.startScreen.style.display = 'flex';
         }
     </script>
 </body>
