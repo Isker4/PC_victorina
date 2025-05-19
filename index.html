@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Спрашивал пацан</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+        }
+        
+        body {
+            background-color: #000;
+            color: #fff;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(to right, #000066, #0000cc);
+            padding: 15px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            border-bottom: 3px solid gold;
+        }
+        
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            padding: 15px;
+            position: relative;
+        }
+        
+        .question-container {
+            background: linear-gradient(to bottom, #000066, #000033);
+            border: 3px solid gold;
+            border-radius: 15px;
+            padding: 20px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .question-number {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: gold;
+            color: #000;
+            padding: 5px 10px;
+            border-radius: 50%;
+            font-weight: bold;
+        }
+        
+        .question-text {
+            font-size: 22px;
+            margin-bottom: 30px;
+            text-align: center;
+            line-height: 1.4;
+        }
+        
+        .answers-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .answer {
+            background: linear-gradient(to right, #000066, #333399);
+            border: 2px solid #6666ff;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .answer:hover {
+            background: linear-gradient(to right, #333399, #6666cc);
+            transform: scale(1.02);
+        }
+        
+        .answer.correct {
+            background: linear-gradient(to right, #006600, #009900);
+            border-color: #00ff00;
+        }
+        
+        .answer.wrong {
+            background: linear-gradient(to right, #660000, #990000);
+            border-color: #ff0000;
+        }
+        
+        .lifelines {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .lifeline {
+            background: linear-gradient(to bottom, #3333cc, #000066);
+            border: 2px solid gold;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .lifeline.used {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .timer {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: red;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        
+        .start-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        
+        .start-screen h1 {
+            color: gold;
+            font-size: 36px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .start-screen button {
+            background: linear-gradient(to bottom, #3333cc, #000066);
+            color: white;
+            border: 2px solid gold;
+            border-radius: 10px;
+            padding: 15px 30px;
+            font-size: 20px;
+            cursor: pointer;
+            margin: 10px;
+            min-width: 200px;
+        }
+        
+        .prize-ladder {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid gold;
+            border-radius: 10px;
+            padding: 10px;
+        }
+        
+        .prize-item {
+            padding: 5px 10px;
+            margin: 5px 0;
+            text-align: right;
+        }
+        
+        .prize-item.current {
+            background: gold;
+            color: black;
+            font-weight: bold;
+            border-radius: 5px;
+        }
+        
+        .prize-item.passed {
+            color: gold;
+        }
+        
+        .prize-item.future {
+            color: #888;
+        }
+        
+        @media (max-width: 768px) {
+            .answers-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .question-text {
+                font-size: 18px;
+            }
+            
+            .answer {
+                padding: 12px;
+                font-size: 16px;
+            }
+            
+            .prize-ladder {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">Спрашивал пацан</div>
+    
+    <div class="game-container">
+        <div class="question-container">
+            <div class="question-number" id="question-number">1</div>
+            <div class="timer" id="timer">30</div>
+            <div class="question-text" id="question-text">Загрузка вопросов...</div>
+            <div class="answers-container" id="answers-container"></div>
+            <div class="lifelines">
+                <div class="lifeline" id="fifty-fifty">50/50</div>
+                <div class="lifeline" id="call-friend">Звонок</div>
+                <div class="lifeline" id="audience-help">Помощь</div>
+            </div>
+        </div>
+        
+        <div class="prize-ladder" id="prize-ladder">
+            <div class="prize-item future">100 ₽</div>
+            <div class="prize-item future">200 ₽</div>
+            <div class="prize-item future">300 ₽</div>
+            <div class="prize-item future">500 ₽</div>
+            <div class="prize-item future">1 000 ₽</div>
+            <div class="prize-item future">2 000 ₽</div>
+            <div class="prize-item future">4 000 ₽</div>
+            <div class="prize-item future">8 000 ₽</div>
+            <div class="prize-item future">16 000 ₽</div>
+            <div class="prize-item future">32 000 ₽</div>
+            <div class="prize-item future">64 000 ₽</div>
+            <div class="prize-item future">125 000 ₽</div>
+            <div class="prize-item future">250 000 ₽</div>
+            <div class="prize-item future">500 000 ₽</div>
+            <div class="prize-item future">1 000 000 ₽</div>
+        </div>
+    </div>
+    
+    <div class="start-screen" id="start-screen">
+        <h1>Спрашивал пацан</h1>
+        <button id="start-game">Начать игру</button>
+    </div>
+
+    <script>
+        let currentQuestion = 0;
+        let score = 0;
+        let timerInterval = null;
+        let questions = [];
+        let usedLifelines = {
+            fiftyFifty: false,
+            callFriend: false,
+            audienceHelp: false
+        };
+
+        const ui = {
+            startScreen: document.getElementById('start-screen'),
+            questionText: document.getElementById('question-text'),
+            answersContainer: document.getElementById('answers-container'),
+            questionNumber: document.getElementById('question-number'),
+            timer: document.getElementById('timer'),
+            prizeLadder: document.getElementById('prize-ladder'),
+            fiftyFifty: document.getElementById('fifty-fifty'),
+            callFriend: document.getElementById('call-friend'),
+            audienceHelp: document.getElementById('audience-help')
+        };
+
+        document.getElementById('start-game').addEventListener('click', startGame);
+        ui.fiftyFifty.addEventListener('click', useFiftyFifty);
+        ui.callFriend.addEventListener('click', useCallFriend);
+        ui.audienceHelp.addEventListener('click', useAudienceHelp);
+
+        async function startGame() {
+            ui.startScreen.style.display = 'none';
+            questions = await loadQuestions();
+            showQuestion();
+            startTimer();
+        }
+
+        async function loadQuestions() {
+            try {
+                const response = await fetch('chat.txt');
+                const text = await response.text();
+                return generateQuestions(text.split('\n'));
+            } catch (error) {
+                console.error('Ошибка загрузки вопросов:', error);
+                return [];
+            }
+        }
+
+        function generateQuestions(chatLines) {
+            const questions = [];
+            const lines = chatLines.filter(line => line.trim().length > 5);
+            
+            for (let i = 0; i < lines.length && questions.length < 15; i++) {
+                const line = lines[i];
+                const words = line.split(' ');
+                if (words.length < 3) continue;
+
+                questions.push({
+                    question: `Что означает "${line}"?`,
+                    answers: generateAnswers(line, lines),
+                    correct: Math.floor(Math.random() * 4)
+                });
+            }
+            
+            return questions;
+        }
+
+        function generateAnswers(line, allLines) {
+            const answers = new Set();
+            answers.add(getCorrectAnswer(line));
+            
+            while (answers.size < 4) {
+                const randomLine = allLines[Math.floor(Math.random() * allLines.length)];
+                answers.add(getRandomAnswer(randomLine));
+            }
+            
+            return Array.from(answers).sort(() => Math.random() - 0.5);
+        }
+
+        function getCorrectAnswer(line) {
+            const answers = {
+                'лол': 'Громко смеюсь',
+                'кек': 'Смех в интернете',
+                'ауф': 'Выражение восторга',
+                'имхо': 'Имею мнение, хрен оспоришь'
+            };
+            
+            const lowerLine = line.toLowerCase();
+            for (const [key, value] of Object.entries(answers)) {
+                if (lowerLine.includes(key)) return value;
+            }
+            return 'Неизвестное выражение';
+        }
+
+        function getRandomAnswer(line) {
+            const randomAnswers = [
+                'Согласие',
+                'Вопрос',
+                'Сарказм',
+                'Приветствие',
+                'Прощание',
+                'Комплимент'
+            ];
+            return randomAnswers[Math.floor(Math.random() * randomAnswers.length)];
+        }
+
+        function showQuestion() {
+            if (currentQuestion >= questions.length) {
+                endGame();
+                return;
+            }
+
+            const question = questions[currentQuestion];
+            ui.questionText.textContent = question.question;
+            ui.questionNumber.textContent = currentQuestion + 1;
+            ui.answersContainer.innerHTML = '';
+
+            question.answers.forEach((answer, index) => {
+                const answerElement = document.createElement('div');
+                answerElement.className = 'answer';
+                answerElement.textContent = answer;
+                answerElement.onclick = () => checkAnswer(index === question.correct);
+                ui.answersContainer.appendChild(answerElement);
+            });
+
+            updatePrizeLadder();
+            resetLifelines();
+        }
+
+        function checkAnswer(isCorrect) {
+            clearInterval(timerInterval);
+            const answers = document.querySelectorAll('.answer');
+
+            answers.forEach((el, index) => {
+                el.classList.add(index === questions[currentQuestion].correct ? 'correct' : 'wrong');
+                el.style.pointerEvents = 'none';
+            });
+
+            if (isCorrect) {
+                score += calculatePrize(currentQuestion + 1);
+                setTimeout(() => {
+                    currentQuestion++;
+                    showQuestion();
+                    startTimer();
+                }, 2000);
+            } else {
+                setTimeout(endGame, 2000);
+            }
+        }
+
+        function startTimer() {
+            let timeLeft = 30;
+            ui.timer.textContent = timeLeft;
+            
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                ui.timer.textContent = timeLeft;
+                
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function updatePrizeLadder() {
+            const prizes = document.querySelectorAll('.prize-item');
+            prizes.forEach((prize, index) => {
+                prize.classList.remove('current', 'passed');
+                if (index === currentQuestion) prize.classList.add('current');
+                if (index < currentQuestion) prize.classList.add('passed');
+            });
+        }
+
+        function calculatePrize(questionNumber) {
+            const prizes = [100, 200, 300, 500, 1000, 2000, 4000, 8000, 16000, 32000, 64000, 125000, 250000, 500000, 1000000];
+            return prizes[questionNumber - 1] || 0;
+        }
+
+        function resetLifelines() {
+            usedLifelines = {
+                fiftyFifty: false,
+                callFriend: false,
+                audienceHelp: false
+            };
+            ui.fiftyFifty.classList.remove('used');
+            ui.callFriend.classList.remove('used');
+            ui.audienceHelp.classList.remove('used');
+        }
+
+        function useFiftyFifty() {
+            if (usedLifelines.fiftyFifty) return;
+            
+            const answers = document.querySelectorAll('.answer');
+            let hidden = 0;
+            
+            answers.forEach((el, index) => {
+                if (index !== questions[currentQuestion].correct && hidden < 2) {
+                    el.style.display = 'none';
+                    hidden++;
+                }
+            });
+            
+            usedLifelines.fiftyFifty = true;
+            ui.fiftyFifty.classList.add('used');
+        }
+
+        function useCallFriend() {
+            if (usedLifelines.callFriend) return;
+            
+            const correctAnswer = questions[currentQuestion].answers[questions[currentQuestion].correct];
+            alert(`Друг говорит: "Думаю, это '${correctAnswer}'!"`);
+            usedLifelines.callFriend = true;
+            ui.callFriend.classList.add('used');
+        }
+
+        function useAudienceHelp() {
+            if (usedLifelines.audienceHelp) return;
+            
+            const percentages = [0, 0, 0, 0];
+            const correctIndex = questions[currentQuestion].correct;
+            percentages[correctIndex] = Math.floor(Math.random() * 30) + 50;
+            
+            for (let i = 0; i < 4; i++) {
+                if (i !== correctIndex) {
+                    percentages[i] = Math.floor((100 - percentages[correctIndex]) / 3);
+                }
+            }
+            
+            let result = "Помощь зала:\n";
+            questions[currentQuestion].answers.forEach((answer, i) => {
+                result += `${answer}: ${percentages[i]}%\n`;
+            });
+            
+            alert(result);
+            usedLifelines.audienceHelp = true;
+            ui.audienceHelp.classList.add('used');
+        }
+
+        function endGame() {
+            clearInterval(timerInterval);
+            ui.questionText.textContent = `Игра окончена! Ваш выигрыш: ${score} ₽`;
+            ui.answersContainer.innerHTML = '';
+            ui.timer.style.display = 'none';
+        }
+    </script>
+</body>
+</html>
